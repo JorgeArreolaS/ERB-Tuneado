@@ -16,13 +16,29 @@ const configuration: webpack.Configuration = {
       {
         test: /\.[jt]sx?$/,
         exclude: /node_modules/,
-        use: {
-          loader: 'ts-loader',
-          options: {
-            // Remove this line to enable type checking in webpack builds
-            transpileOnly: true,
+        use: [
+          {
+            loader: "babel-loader",
+            options: {
+              cacheDirectory: true,
+              presets: [
+                ["@babel/preset-env", { targets: { node: "8" } }],
+                [
+                  "@babel/preset-react", {
+                    runtime: 'automatic',
+                    importSource: '@emotion/react',
+                  }
+                ],
+                ["@babel/preset-typescript"]
+              ],
+              plugins: [
+                'babel-plugin-twin',
+                'babel-plugin-macros',
+                '@emotion/babel-plugin',
+              ]
+            }
           },
-        },
+        ],
       },
     ],
   },

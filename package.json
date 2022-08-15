@@ -46,7 +46,8 @@
     "start:main": "cross-env NODE_ENV=development electronmon -r ts-node/register/transpile-only .",
     "start:preload": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.preload.dev.ts",
     "start:renderer": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.renderer.dev.ts",
-    "test": "jest"
+    "test": "jest",
+    "sync": "eval `ssh-agent -s` && ssh-add ~/.ssh/id_rsa && node ./.sync.js"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
@@ -108,14 +109,32 @@
     }
   },
   "dependencies": {
+    "@babel/preset-env": "^7.18.10",
+    "@emotion/babel-preset-css-prop": "^11.10.0",
+    "@emotion/css": "^11.10.0",
+    "@emotion/react": "^11.10.0",
+    "@emotion/styled": "^11.10.0",
+    "babel-loader": "^8.2.5",
+    "classnames": "^2.3.1",
     "electron-debug": "^3.2.0",
     "electron-log": "^4.4.7",
     "electron-updater": "^5.0.3",
+    "jotai": "^1.7.8",
+    "md5": "^2.3.0",
+    "node-watch": "^0.7.3",
+    "picomatch": "^2.3.1",
+    "primeflex": "^3.2.1",
+    "primeicons": "^5.0.0",
+    "primereact": "^8.3.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.3.0"
+    "react-router-dom": "^6.3.0",
+    "twin.macro": "^2.8.2"
   },
   "devDependencies": {
+    "@babel/preset-react": "^7.18.6",
+    "@babel/preset-typescript": "^7.18.6",
+    "@emotion/babel-plugin": "^11.10.0",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.6",
     "@teamsupercell/typings-for-css-modules-loader": "^2.5.1",
     "@testing-library/jest-dom": "^5.16.4",
@@ -129,6 +148,9 @@
     "@types/webpack-bundle-analyzer": "^4.4.1",
     "@typescript-eslint/eslint-plugin": "^5.23.0",
     "@typescript-eslint/parser": "^5.23.0",
+    "autoprefixer": "^10.4.8",
+    "babel-plugin-macros": "^3.1.0",
+    "babel-plugin-twin": "^1.0.2",
     "browserslist-config-erb": "^0.0.3",
     "chalk": "^4.1.2",
     "concurrently": "^7.1.0",
@@ -163,6 +185,8 @@
     "jest-environment-jsdom": "^28.1.0",
     "lint-staged": "^12.4.1",
     "mini-css-extract-plugin": "^2.6.0",
+    "postcss": "^8.4.16",
+    "postcss-loader": "^7.0.1",
     "prettier": "^2.6.2",
     "react-refresh": "^0.13.0",
     "react-test-renderer": "^18.1.0",
@@ -170,6 +194,7 @@
     "sass": "^1.51.0",
     "sass-loader": "^12.6.0",
     "style-loader": "^3.3.1",
+    "tailwindcss": "^2.2.19",
     "terser-webpack-plugin": "^5.3.1",
     "ts-jest": "^28.0.2",
     "ts-loader": "^9.3.0",
