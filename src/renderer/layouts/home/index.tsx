@@ -6,9 +6,13 @@ import { Button } from 'primereact/button'
 import { Card } from 'primereact/card';
 import { Knob } from 'primereact/knob';
 import { Chips } from 'primereact/chips';
+
 import { useToast } from 'renderer/hooks';
 import { atom, useAtom, useAtomValue } from 'jotai';
 import { selectedAtom } from '../test';
+import { setupRoute } from 'renderer/helpers/route';
+import { ListBox } from 'primereact/listbox';
+import { useElectron } from 'renderer/electron_ipc';
 
 export const knobAtom = atom(0)
 export const chipsAtom = atom<string[]>([])
@@ -20,6 +24,12 @@ export const HomeLayout = () => {
   const [chips, setChips] = useAtom(chipsAtom)
   const selected = useAtomValue(selectedAtom)
 
+  const [items] = useElectron.test({
+    initial: {
+      path: ['uwu', 'fino señores', 'nyatzu']
+    }
+  })
+
   return (
     <div className=" p-2 flex flex-column gap-3 ">
       <div className=" flex justify-content-between ">
@@ -30,7 +40,7 @@ export const HomeLayout = () => {
           label="Test"
           icon=" pi pi-cog "
           className=" p-button-info p-button-sm self-align-right py-0 px-2 "
-          onClick={ () => navigate('/test') }
+          onClick={() => navigate('/test')}
         />
       </div>
 
@@ -104,6 +114,17 @@ export const HomeLayout = () => {
         </pre>
       </Card>
 
+      <Card>
+        <pre>
+          <ListBox
+            listStyle={{ maxHeight: '30vh' }}
+            options={items?.items}
+          />
+        </pre>
+      </Card>
+
     </div>
   );
 };
+
+export const HomeRoute = setupRoute('/', HomeLayout)

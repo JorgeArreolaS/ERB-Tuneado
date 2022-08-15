@@ -14,7 +14,7 @@ import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
-import { readdir } from 'fs/promises';
+import { handlers } from './handlers';
 
 class AppUpdater {
   constructor() {
@@ -26,14 +26,9 @@ class AppUpdater {
 
 let mainWindow: BrowserWindow | null = null;
 
-ipcMain.handle('ipc-dir', async (_event, path) => {
-  console.log("ASD")
-  path = ['C:/', ...path]
-  console.log(path)
-  const i = await readdir(path.length > 0 ? path.join('/') : 'C:/')
-
-  return { items: i, test: 'Nyatzuu' }
-})
+Object.entries( handlers ).map( ([path, handler]) => {
+  ipcMain.handle(path, (_event, params) => handler(params))
+} )
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');

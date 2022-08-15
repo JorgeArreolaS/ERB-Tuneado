@@ -1,15 +1,40 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+import { handlers } from './handlers';
 
-export type Channels = 'ipc-example' | 'ipc-dir';
+export type Channels = keyof handlers;
 
-contextBridge.exposeInMainWorld('electron', {
-  async dir(path: string[]){
-    console.log(path)
-    return await ipcRenderer.invoke('ipc-dir', path);
-  },
+type Params<F> =
+  F extends (param: infer P) => any ? P : unknown
+type Return<F> =
+  F extends (param: any) => Promise<infer R> ? R : unknown
+
+const invoke: <
+  channel extends keyof handlers,
+  handler = handlers[channel]
+  >(path: channel, params: Params<handler>) => Promise<Return<handler>>
+
+  = async (channel, params) => {
+    console.log("Called, handler:", channel, "with params:", params)
+    return await ipcRenderer.invoke(channel, params);
+  }
+
+type key = 'electron'
+const key: key = 'electron'
+
+const processed: {
+  [ channel in Channels ]: ( params: Params<handlers[channel]> ) => Promise<Return<handlers[channel]>>
+} = Object.fromEntries( ( Object.keys(handlers) as Channels[] ).map( (channel) => {
+    return [ channel, (params: any) => invoke(channel, params) ]
+} ) ) as any
+
+  console.log({processed})
+
+const api = {
+  invoke,
+  exec: processed,
   ipcRenderer: {
     async sendMessage(channel: Channels, args: unknown[], _a: string) {
-      console.log({channel, args})
+      console.log({ channel, args })
       return await ipcRenderer.invoke(channel, args);
     },
     on(channel: Channels, func: (...args: unknown[]) => void) {
@@ -23,4 +48,9 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.once(channel, (_event, ...args) => func(...args));
     },
   },
-});
+}
+export type windowContext = {
+  [key]: typeof api
+}
+
+contextBridge.exposeInMainWorld(key, api);

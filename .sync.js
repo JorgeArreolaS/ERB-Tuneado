@@ -10,7 +10,7 @@ const remote_dirs = new Set()
 
 const colorizeName = (f) => {
   const { dir, base } = path.parse(f)
-  return chalk.cyan(dir+"/")+chalk.white(base)
+  return chalk.cyan(dir + "/") + chalk.white(base)
 }
 
 const ignore = (f) => {
@@ -19,7 +19,7 @@ const ignore = (f) => {
 }
 const hash = (f) => new Promise((resolve, reject) => {
   fs.readFile(f, (err, buf) => {
-    if(err){
+    if (err) {
       reject(`Error reading file: ${chalk.red(f)} wtf`)
     }
     resolve(md5(buf).slice(0, 8))
@@ -31,13 +31,13 @@ require('dotenv').config()
 const host = process.env.SYNC_REMOTE_HOST
 const remote_path = process.env.SYNC_REMOTE_PATH
 
-if(!host) {
-  console.error(chalk.red( "Remote address not found in environment" ))
+if (!host) {
+  console.error(chalk.red("Remote address not found in environment"))
   process.exit(1)
 }
 
-if(!remote_path) {
-  console.error(chalk.red( "Remote path not found in environment" ))
+if (!remote_path) {
+  console.error(chalk.red("Remote path not found in environment"))
   process.exit(1)
 }
 
@@ -54,7 +54,7 @@ const sync = async (f = "", hash = "") => {
     try {
       console.log(chalk.yellow("Created Dir"), dir)
       const a = execSync(`ssh ${host} 'mkdir -p "${remote_path}/${dir}" 2>null'`)
-    } catch (e) {}
+    } catch (e) { }
     remote_dirs.add(dir)
   }
   const out = execSync(`scp -p ${f} ${host}:${remote_path}/${f}`)
@@ -65,24 +65,34 @@ const sync = async (f = "", hash = "") => {
 }
 
 const handleUpdate = async (f) => {
-  const newHash = await hash(f)
-  if (!files_hash.has(f)) {
-    sync(f)
+  try {
+
+    const newHash = await hash(f)
+    if (!files_hash.has(f)) {
+      sync(f)
+    }
+    const changed = newHash !== files_hash.get(f)
+
+    // console.log(chalk.cyan(f), newHash, 'vs', files_hash.get(f), chalk.yellow(changed))
+
+    if (changed) {
+      sync(f, newHash)
+    }
+
+    files_hash.set(f, newHash)
+
+  } catch (e) {
+    console.error(chalk.red("[ERROR]"), `Error updating`, f)
+    console.error(e.message)
   }
-  const changed = newHash !== files_hash.get(f)
-
-  // console.log(chalk.cyan(f), newHash, 'vs', files_hash.get(f), chalk.yellow(changed))
-
-  if (changed) {
-    sync(f, newHash)
-  }
-
-  files_hash.set(f, newHash)
 
 }
 const handleDelete = (f) => {
   if (files_hash.has(f))
     files_hash.delete(f)
+
+  const a = execSync(`ssh ${host} 'rm "${remote_path}/${f}"'`)
+  console.log(a)
   console.log(chalk.red(">"), f, chalk.red("deleted"))
   // TODO: Remove remote file
 }
