@@ -8,13 +8,13 @@
  * When running `npm run build` or `npm run build:main`, this file is compiled to
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
-import path from 'path';
+import path, { parse } from 'path';
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
-import { handlers } from './handlers';
+import { FileType, handlers } from './handlers';
 
 class AppUpdater {
   constructor() {
@@ -26,13 +26,14 @@ class AppUpdater {
 
 let mainWindow: BrowserWindow | null = null;
 
-Object.entries( handlers ).map( ([path, handler]) => {
-  ipcMain.handle(path, (_event, params) => handler(params, { 
+Object.entries(handlers).map(([path, handler]) => {
+  ipcMain.handle(path, (_event, params) => handler(params, {
     event: _event, mainWindow
   }))
-} )
+})
 
 import Store from 'electron-store';
+import { readdir, stat } from 'fs/promises';
 
 const store = new Store();
 
@@ -40,9 +41,102 @@ const store = new Store();
 ipcMain.on('electron-store-get', async (event, val) => {
   event.returnValue = store.get(val);
 });
-ipcMain.on('electron-store-set', async (event, key, val) => {
+ipcMain.on('electron-store-set', async (_event, key, val) => {
   store.set(key, val);
 });
+const explorer: {
+  running: boolean,
+  extensions: string[],
+  ignore: string[],
+} = {
+  running: false,
+  extensions: [],
+  ignore: [],
+}
+
+const toIgnore = (itemPath: string) => {
+  if (explorer.ignore && explorer.ignore.length) {
+    for (let ignore of explorer.ignore) {
+      const regex = new RegExp(ignore)
+      const match = itemPath.match(regex)
+      if (!!match) {
+        return true
+      }
+    }
+  }
+  return false
+}
+import debounce from 'debounce'
+let current = ''
+const sendCurrent = debounce( () => {
+    mainWindow?.webContents.send('current-file', current)
+}, 1000 )
+
+const recursiveExplorer = async (path: string): Promise<any> => {
+  if (!explorer.running) return
+
+  if (toIgnore(path))
+    return
+
+  try {
+    current = path
+    sendCurrent() 
+    const items = await readdir(path)
+
+    for (let item of items) {
+      if (!explorer.running) return
+
+      const itemPath = [path, item].join('/')
+      try {
+        const stats = await stat(itemPath)
+        const parsed = parse(itemPath)
+
+        if (stats.isDirectory())
+          await recursiveExplorer(itemPath)
+
+        if (stats.isFile()) {
+
+          if (explorer.extensions.length > 0 && !explorer.extensions.includes(parsed.ext.slice(1)))
+            continue
+
+          if (toIgnore(itemPath))
+            continue
+
+          const fileInfo: FileType = { ...stats, ...parsed }
+          console.log("Found:", itemPath)
+          mainWindow?.webContents.send('file-found', fileInfo)
+        }
+      } catch (e) { }
+
+    }
+  } catch (e) {
+    return
+  }
+}
+
+ipcMain.on('explorer-control', async (_event, action: 'start' | 'stop') => {
+  console.log(action)
+  if (action === 'start') {
+    const path = store.get('root_path')
+    explorer.extensions = store.get('exts') as string[] || []
+    explorer.ignore = store.get('ignore') as string[] || []
+    console.log("Loaded extensions:", explorer?.extensions)
+    console.log("Loaded ignore:", explorer?.ignore)
+    if (path) {
+      explorer.running = true
+      recursiveExplorer(String(path)).then(e => {
+        if (explorer.running) {
+          console.log("Finished lol", e)
+          mainWindow?.webContents.send('explorer-ended', e)
+        }
+        explorer.running = false
+      })
+    }
+  } else {
+    explorer.running = false
+  }
+  _event.returnValue = explorer
+})
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');

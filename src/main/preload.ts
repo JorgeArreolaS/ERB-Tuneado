@@ -1,7 +1,8 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import { handlers } from './handlers';
 
-export type Channels = keyof handlers;
+export type Channels = 'file-found' | 'explorer-control' | 'explorer-ended' | "current-file"
+export type Handlers = keyof handlers;
 
 type Params<F> =
   F extends (param: infer P, ...args: any[]) => any ? P : unknown
@@ -22,8 +23,8 @@ type key = 'electron'
 const key: key = 'electron'
 
 const processed: {
-  [channel in Channels]: (params: Params<handlers[channel]>) => Promise<Return<handlers[channel]>>
-} = Object.fromEntries((Object.keys(handlers) as Channels[]).map((channel) => {
+  [channel in Handlers]: (params: Params<handlers[channel]>) => Promise<Return<handlers[channel]>>
+} = Object.fromEntries((Object.keys(handlers) as Handlers[]).map((channel) => {
   return [channel, (params: any) => invoke(channel, params)]
 })) as any
 
@@ -33,11 +34,11 @@ const api = {
   invoke,
   exec: processed,
   ipcRenderer: {
-    async sendMessage(channel: Channels, args: unknown[], _a: string) {
-      console.log({ channel, args })
-      return await ipcRenderer.invoke(channel, args);
+    async sendMessage(channel: Channels, args: any) {
+      return ipcRenderer.send(channel, args);
     },
     on(channel: Channels, func: (...args: unknown[]) => void) {
+      console.log("SUSCRIBED TO", channel)
       const subscription = (_event: IpcRendererEvent, ...args: unknown[]) =>
         func(...args);
       ipcRenderer.on(channel, subscription);

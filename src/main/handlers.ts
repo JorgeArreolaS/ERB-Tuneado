@@ -1,8 +1,9 @@
 import { BrowserWindow, dialog, IpcMainInvokeEvent } from "electron"
 import type { Stats } from "fs"
 import { readdir, stat } from "fs/promises"
-import { parse, ParsedPath } from "path"
+import path, { parse, ParsedPath } from "path"
 
+export type FileType = (Stats & ParsedPath)
 type cxt = {
   event: IpcMainInvokeEvent
   mainWindow: BrowserWindow | null
@@ -22,7 +23,7 @@ export const handlers = setupHandler({
     const path = ['C:/', ...params.path]
     console.log("READING:", path)
     const i = await readdir(path.length > 0 ? path.join('/') : 'C:/')
-    let items: (Stats & ParsedPath)[] = []
+    let items: FileType[] = []
 
     for (let item of i) {
       const itemPath = [...path, item].join('/')
@@ -44,12 +45,24 @@ export const handlers = setupHandler({
     return {}
   },
 
-  selectDir: async (params: any, { mainWindow }) => {
-    if(!mainWindow) return
+  selectDir: async (_params: any, { mainWindow }) => {
+    if (!mainWindow) return
     return await dialog.showOpenDialog(mainWindow, {
-      properties: ['openFile', 'openDirectory']
+      properties: ['openDirectory']
     })
-  }
+  },
+
+  openDir: async (_params: string) => {
+    const { shell } = require('electron') // deconstructing assignment
+    shell.showItemInFolder(path.resolve( _params )) // Open the given file in the desktop's default manner.
+  },
+
+  openFile: async (_params: string) => {
+    const { shell } = require('electron') // deconstructing assignment
+    // shell.openPath(path.resolve( _params )) // Open the given file in the desktop's default manner.
+    shell.openPath(path.resolve( _params )) // Show the given file in a file manager. If possible, select the file.
+  },
+
 
 })
 
