@@ -6,13 +6,13 @@ import { Button } from 'primereact/button'
 import { Card } from 'primereact/card';
 import { Chips } from 'primereact/chips';
 
-import { useToast } from 'renderer/hooks';
-import { atom, useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { atom, useAtom, useSetAtom } from 'jotai';
 import { setupRoute } from 'renderer/helpers/route';
 import ElectronIPC from 'renderer/electron_ipc';
 import { createStoreAtom } from 'renderer/helpers';
-import FoundFilesTable, { currentFileAtom, filesAtom } from './FoundFilesTable';
+import FoundFilesTable, { filesAtom } from './FoundFilesTable';
 import classNames from 'classnames';
+import { Accordion, AccordionTab } from 'primereact/accordion';
 
 export const knobAtom = atom(0)
 
@@ -51,8 +51,19 @@ export const HomeLayout = () => {
   return (
     <div className=" p-2 flex flex-column gap-3 h-screen overflow-y-auto ">
       <div className=" flex justify-content-between ">
-        <div tw=" text-yellow-400 text-2xl font-semibold mx-1 ">
-          Dashboard <span className="text-gray-200 font-normal ">{test}</span>
+        <div tw=" text-yellow-400 text-2xl font-semibold mx-1 flex gap-2">
+          <span>
+            Explorador
+          </span>
+          <Button
+            className={classNames(" p-button-sm py-0 px-2 ", {
+              ' p-button-warning ': running
+            })}
+            label={running ? "Detener Búsqueda" : "Iniciar Búsqueda"}
+            icon={`pi ${running ? " pi-pause " : " pi-play "}`}
+            onClick={handleToggleExplorer}
+          />
+          <span className="text-gray-200 font-normal ">{test}</span>
         </div>
         <div className="h-full flex gap-2 ">
           <Button
@@ -70,53 +81,20 @@ export const HomeLayout = () => {
         </div>
       </div>
 
-      <Card css={css`
-        .p-card-content {
-          ${ tw` py-1 ` }
-        }
-      `}>
-        <div className=" flex gap-3 py-0 my-0 ">
+      <div className=" flex gap-3 py-0 my-0 ">
+        {/*
           <div className=" flex flex-column gap-1 w-3 ">
-            <Button
-              className={classNames({
-                ' p-button-warning ': running
-              })}
-              label={running ? "Stop" : "Start"}
-              icon={`pi ${ running? " pi-pause ": " pi-play " }`}
-              onClick={handleToggleExplorer}
-            />
-            { /* 
-            <Button
-              className=" p-button-warning "
-              label="Ok world"
-              icon=" pi pi-check "
-              onClick={() => {
-                toast?.show({ severity: 'warn', summary: 'Warning, something is gonna explode', detail: 'Order submitted' });
-              }}
-            />
-            <Button
-              className=" p-button-danger "
-              label="Die world"
-              icon=" pi pi-trash "
-              onClick={() => {
-                toast?.show([
-                  { severity: 'error', summary: 'Message 1', detail: 'PrimeReact rocks' },
-                  { severity: 'error', summary: 'Message 2', detail: 'PrimeReact rocks' },
-                  { severity: 'error', summary: 'Message 3', detail: 'PrimeFaces rocks' },
-                ])
-              }}
-            />
-*/ }
           </div>
-
 
           <div className=" w-3 flex items-center justify-center ">
 
           </div>
+        */}
 
-          <div
-            className="flex flex-column w-6 "
-            css={css`
+
+        <div
+          className=" w-12 "
+          css={css`
               .p-chips-multiple-container {
                 ${tw` w-full `}
               }
@@ -130,22 +108,31 @@ export const HomeLayout = () => {
                 ${tw` text-red-400 `}
               }
             `}
-          >
-            <h4 className="text-green-500 mb-1 mt-0 leading-none ">Extensions</h4>
-            <Chips
-              className=" min-w-full exts-chips "
-              value={chips || []}
-              onChange={(e) => setChips(e.value)}
-            ></Chips>
-            <h4 className="text-yellow-500 mb-1 mt-1 leading-none ">Ignore</h4>
-            <Chips
-              className=" min-w-full ignore-chips "
-              value={ignore || []}
-              onChange={(e) => setIgnore(e.value)}
-            ></Chips>
-          </div>
+        >
+          <Accordion multiple className="accordion-custom">
+            <AccordionTab
+              header={<><i className="pi pi-cog"></i><span> Configuración</span></>}
+            >
+              <div>
+                <h4 className="text-green-500 mb-1 mt-0 leading-none "> Extensiones</h4>
+                <Chips
+                  className=" min-w-full exts-chips "
+                  value={chips || []}
+                  onChange={(e) => setChips(e.value)}
+                ></Chips>
+              </div>
+              <div>
+                <h4 className="text-yellow-500 mb-1 mt-1 leading-none "> Omitir <span tw="text-gray-500">(regex)</span></h4>
+                <Chips
+                  className=" min-w-full ignore-chips "
+                  value={ignore || []}
+                  onChange={(e) => setIgnore(e.value)}
+                ></Chips>
+              </div>
+            </AccordionTab>
+          </Accordion>
         </div>
-      </Card>
+      </div>
 
       <FoundFilesTable />
 

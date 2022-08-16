@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { pathAtom, runningAtom } from "."
 
 export const filesAtom = atom<FileType[]>([])
+const filesCountAtom = atom<number>( (get) => get(filesAtom).length )
 export const currentFileAtom = atom<string>("")
 
 const FoundFilesTable: React.FC<{}> = ({ }) => {
@@ -21,11 +22,12 @@ const FoundFilesTable: React.FC<{}> = ({ }) => {
         setFile(data)
       }),
       window.electron.ipcRenderer.on("explorer-ended", (_data: any) => {
-        setRunning(false)
         toast?.show({
           severity: "success",
-          summary: 'Ended exploration',
+          summary: 'Exploración finalizada',
         })
+        setFile("")
+        setRunning(false)
       }),
     ]
     return () => {
@@ -57,10 +59,47 @@ import ElectronIPC from "renderer/electron_ipc"
 
 const FilesTable: React.FC<{}> = ({ }) => {
   const path = useAtomValue(pathAtom)
+  const running = useAtomValue(runningAtom)
   const [files, setFiles] = useAtom(filesAtom)
   const [totalSize] = useDebounce(files.length > 0 && files.map(i => i.size).reduce((a, b) => a + b), 1000)
+  const toast = useToast()
 
-  const clearFiles = () => setFiles([])
+  const handleDelete = async (data: FileType, { promptSuccess }: { promptSuccess?: boolean } = { promptSuccess: false }): Promise<boolean> => {
+    const res = await ElectronIPC.deleteFile({ path: data.path })
+    if (res.error) {
+      toast?.show({
+        severity: "error",
+        summary: 'Error eliminando archivo',
+        detail: res.error?.message
+      })
+      return false
+    }
+    if (promptSuccess) {
+      toast?.show({
+        severity: "success",
+        summary: 'Archivo eliminado',
+        detail: data.path
+      })
+    }
+    setFiles(files => files.filter(i => i.path !== data.path))
+    return true
+  }
+
+  const deleteAll = async () => {
+
+    let count = 0
+    for (let file of files) {
+      const res = await handleDelete(file)
+      if (res)
+        count++
+    }
+
+    toast?.show({
+      severity: "success",
+      summary: 'Eliminación completeda',
+      detail: `${count} archivos removidos permanentemente` 
+    })
+  }
 
   const round = (n: number, d: number = 2) => Math.round(n * 10 ** d) / 10 ** d
 
@@ -84,16 +123,18 @@ const FilesTable: React.FC<{}> = ({ }) => {
     <div className="flex align-items-center gap-3 ">
       <h5 className="m-0">{files.length} archivos encontrados</h5>
       <div tw=" flex-grow whitespace-nowrap ">
-        <h2 tw=" whitespace-nowrap ">{currentFile}</h2>
+        {running && <h2 tw=" whitespace-nowrap ">{currentFile}</h2>}
       </div>
       <div className=" flex gap-2 items-center justif-center ">
-        {totalSize && <h3 tw=" flex gap-2 ">Total: {sizeColumn({ size: totalSize })}</h3>}
-        <Button
-          className=" p-button-sm p-button-danger py-1 px-2 "
-          label="Limpiar todo"
-          icon=" pi pi-times "
-          onClick={clearFiles}
-        ></Button>
+        {!!totalSize && <h3 tw=" flex gap-2 ">Total: {sizeColumn({ size: totalSize })}</h3>}
+        {files.length > 0 &&
+          <Button
+            className=" p-button-sm p-button-danger py-1 px-2 "
+            label="Borrar todo"
+            icon=" pi pi-trash "
+            onClick={deleteAll}
+          ></Button>
+        }
       </div>
     </div>
   );
@@ -106,10 +147,19 @@ const FilesTable: React.FC<{}> = ({ }) => {
     });
   }
 
+
+  const handleOK = async (data: FileType) => {
+    setFiles(files => files.filter(i => i.path !== data.path))
+  }
+
   const actionColumn = (_options: any) => {
     return <div className=" flex gap-2 ">
-      <Button className="p-button-sm p-button-success" icon=" pi pi-check "></Button>
-      <Button className="p-button-sm p-button-danger" icon=" pi pi-trash "></Button>
+      <Button className="p-button-sm p-button-success" icon=" pi pi-check " onClick={() => handleOK(_options)}></Button>
+      <Button
+        className="p-button-sm p-button-danger"
+        icon=" pi pi-trash "
+        onClick={() => handleDelete(_options, { promptSuccess: true })}
+      ></Button>
     </div>
   }
   const dirName = (options: any) => <span tw=" text-gray-200 cursor-pointer flex gap-2 " className=" group ">
@@ -119,19 +169,22 @@ const FilesTable: React.FC<{}> = ({ }) => {
       tw="transition-all opacity-0 hover:opacity-100 group-hover:opacity-80 -ml-5 group-hover:ml-0 "
       css={css` aspect-ratio: 1/1; `}
       onClick={() => {
-        ElectronIPC.openFile([ options.dir, options.base ].join("/"))
+        ElectronIPC.openFile([options.dir, options.base].join("/"))
       }}
     />
-    { options.base }
+    {options.base}
   </span>
-  const dirCol = (options: any) => <span tw=" text-gray-200 cursor-pointer flex gap-2 " className=" group ">
+  const dirCol = (options: any) => <span
+    tw=" text-gray-200 cursor-pointer flex gap-2 whitespace-nowrap "
+    className=" group "
+  >
     <Button
       icon=" pi pi-external-link "
       className=" p-button-sm p-0 text-sm h-5 w-auto "
       tw="transition-all opacity-0 hover:opacity-100 group-hover:opacity-80 -ml-5 group-hover:ml-0 "
       css={css` aspect-ratio: 1/1; `}
       onClick={() => {
-        ElectronIPC.openDir([ options.dir, options.base ].join("/"))
+        ElectronIPC.openDir([options.dir, options.base].join("/"))
       }}
     />
     {options.dir.replace(path, "") || '/'}
@@ -141,12 +194,13 @@ const FilesTable: React.FC<{}> = ({ }) => {
 
   return <div
     css={css`
-td {
-    padding: 0.2rem 0.5rem!important;
-  &::-webkit-scrollbar {
-  width: 12px;               /* width of the entire scrollbar */
-}
-}
+  td {
+    padding: 0.2rem 0.5rem !important;
+    &::-webkit-scrollbar {
+    width: 2px;               /* width of the entire scrollbar */
+      height: 2px;
+    }
+  }
 `}
   >
     {files &&

@@ -1,9 +1,9 @@
 import { BrowserWindow, dialog, IpcMainInvokeEvent } from "electron"
 import type { Stats } from "fs"
-import { readdir, stat } from "fs/promises"
-import path, { parse, ParsedPath } from "path"
+import { readdir, rm, stat } from "fs/promises"
+import path, { parse, ParsedPath, resolve } from "path"
 
-export type FileType = (Stats & ParsedPath)
+export type FileType = (Stats & ParsedPath & { path: string })
 type cxt = {
   event: IpcMainInvokeEvent
   mainWindow: BrowserWindow | null
@@ -33,6 +33,7 @@ export const handlers = setupHandler({
         items.push({
           ...data,
           ...parsed,
+          path: resolve([parsed.dir, parsed.base].join('/n'))
         })
     }
     return { items: items, test: 'Nyatzuu' }
@@ -40,9 +41,16 @@ export const handlers = setupHandler({
 
   deleteFile: async (params: { path: string }, { mainWindow }) => {
 
-    mainWindow?.emit('dirDeleted', { path: params.path, status: true })
+    try {
+      await rm(params.path, { maxRetries: 2 })
 
-    return {}
+      mainWindow?.emit('dirDeleted', { path: params.path })
+      return { path: params.path }
+
+    } catch (e: any) {
+      return { path: params.path, error: e }
+    }
+
   },
 
   selectDir: async (_params: any, { mainWindow }) => {
@@ -54,15 +62,14 @@ export const handlers = setupHandler({
 
   openDir: async (_params: string) => {
     const { shell } = require('electron') // deconstructing assignment
-    shell.showItemInFolder(path.resolve( _params )) // Open the given file in the desktop's default manner.
+    shell.showItemInFolder(path.resolve(_params)) // Open the given file in the desktop's default manner.
   },
 
   openFile: async (_params: string) => {
     const { shell } = require('electron') // deconstructing assignment
     // shell.openPath(path.resolve( _params )) // Open the given file in the desktop's default manner.
-    shell.openPath(path.resolve( _params )) // Show the given file in a file manager. If possible, select the file.
+    shell.openPath(path.resolve(_params)) // Show the given file in a file manager. If possible, select the file.
   },
-
 
 })
 

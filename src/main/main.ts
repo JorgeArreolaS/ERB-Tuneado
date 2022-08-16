@@ -8,7 +8,7 @@
  * When running `npm run build` or `npm run build:main`, this file is compiled to
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
-import path, { parse } from 'path';
+import path, { parse, resolve } from 'path';
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
@@ -102,7 +102,7 @@ const recursiveExplorer = async (path: string): Promise<any> => {
           if (toIgnore(itemPath))
             continue
 
-          const fileInfo: FileType = { ...stats, ...parsed }
+          const fileInfo: FileType = { ...stats, ...parsed, path: resolve( [parsed.dir, parsed.base].join('/') ) }
           console.log("Found:", itemPath)
           mainWindow?.webContents.send('file-found', fileInfo)
         }
