@@ -4,9 +4,9 @@ import { handlers } from './handlers';
 export type Channels = keyof handlers;
 
 type Params<F> =
-  F extends (param: infer P) => any ? P : unknown
+  F extends (param: infer P, ...args: any[]) => any ? P : unknown
 type Return<F> =
-  F extends (param: any) => Promise<infer R> ? R : unknown
+  F extends (param: any, ...args: any[]) => Promise<infer R> ? R : unknown
 
 const invoke: <
   channel extends keyof handlers,
@@ -22,12 +22,12 @@ type key = 'electron'
 const key: key = 'electron'
 
 const processed: {
-  [ channel in Channels ]: ( params: Params<handlers[channel]> ) => Promise<Return<handlers[channel]>>
-} = Object.fromEntries( ( Object.keys(handlers) as Channels[] ).map( (channel) => {
-    return [ channel, (params: any) => invoke(channel, params) ]
-} ) ) as any
+  [channel in Channels]: (params: Params<handlers[channel]>) => Promise<Return<handlers[channel]>>
+} = Object.fromEntries((Object.keys(handlers) as Channels[]).map((channel) => {
+  return [channel, (params: any) => invoke(channel, params)]
+})) as any
 
-  console.log({processed})
+console.log({ processed })
 
 const api = {
   invoke,
@@ -47,6 +47,15 @@ const api = {
     once(channel: Channels, func: (...args: unknown[]) => void) {
       ipcRenderer.once(channel, (_event, ...args) => func(...args));
     },
+  },
+  store: {
+    get(property: string) {
+      return ipcRenderer.sendSync('electron-store-get', property);
+    },
+    set(property: string, val: any) {
+      ipcRenderer.send('electron-store-set', property, val);
+    },
+    // Other method you want to add like has(), reset(), etc.
   },
 }
 export type windowContext = {

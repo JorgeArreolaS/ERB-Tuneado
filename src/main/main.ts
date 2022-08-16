@@ -27,8 +27,22 @@ class AppUpdater {
 let mainWindow: BrowserWindow | null = null;
 
 Object.entries( handlers ).map( ([path, handler]) => {
-  ipcMain.handle(path, (_event, params) => handler(params))
+  ipcMain.handle(path, (_event, params) => handler(params, { 
+    event: _event, mainWindow
+  }))
 } )
+
+import Store from 'electron-store';
+
+const store = new Store();
+
+// IPC listener
+ipcMain.on('electron-store-get', async (event, val) => {
+  event.returnValue = store.get(val);
+});
+ipcMain.on('electron-store-set', async (event, key, val) => {
+  store.set(key, val);
+});
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');

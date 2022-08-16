@@ -5,24 +5,35 @@ import { chipsAtom } from "./home"
 import { Button } from "primereact/button"
 import { ListBox } from 'primereact/listbox';
 import { setupRoute } from "renderer/helpers/route";
-import { useEffect, useState } from "react";
 import { Card } from "primereact/card";
-import { useElectron } from "renderer/electron_ipc";
+import ElectronIPC, { useElectron } from "renderer/electron_ipc";
+import { useEffect } from "react";
+import { useToast } from "renderer/hooks";
+
+import { DataTable } from 'primereact/datatable';
+import { Column } from "primereact/column";
+import FilesTable from "renderer/components/filesTable";
 
 export const selectedAtom = atom<string | null>(null)
 
 export const TestRoute = setupRoute('/test', () => {
+  const toast = useToast()
   const chips = useAtomValue(chipsAtom)
   const navigate = useNavigate()
   const [item, setItem] = useAtom(selectedAtom)
-  const [test, callTest] = useElectron.getDir({ 
-    initial: () => {
-      return { path: ['/Users/jorgearreola'] }
-    } 
-  })
+
+  useEffect(() => {
+    window.electron.ipcRenderer.on('dirDeleted' as any, (params: any) => {
+      console.log(`Dir deleted`, params)
+      toast?.show({
+        severity: 'warn', summary: 'Sucessfully deleted', detail: 'File: ' + params?.path
+      })
+    })
+  }, [])
+
 
   return (
-    <div tw="p-4">
+    <div tw=" p-4 h-screen overflow-y-auto ">
       <div className="flex mb-2">
         <Button
           label="Home"
@@ -34,28 +45,11 @@ export const TestRoute = setupRoute('/test', () => {
           label="Home"
           icon=" pi pi-check "
           className=" p-button-warn p-button-sm self-align-right py-1 px-2 "
-          onClick={() => callTest({ path: ['/Users/jorgearreola/downloads'] })
-}
         />
       </div>
       <h1 tw=" text-3xl text-blue-400 ">Hello World</h1>
-      <h3 tw=" text-lg text-gray-200 ">Testing uwu</h3>
-      <div className="mt-3 m-2">
-        <ListBox value={item} options={chips} onChange={(e) => setItem(e.value)} />
-      </div>
-      <Card>
-        <div className="card-content">
-          <h1 tw=" text-3xl text-yellow-400 mb-2 ">{item}</h1>
-          {test &&
-            <ListBox
-              value={item}
-              onChange={(e) => setItem(e.value)}
-              listStyle={{ maxHeight: '30vh' }}
-              options={test?.items}
-            />
-          }
-        </div>
-      </Card>
+      <FilesTable/>
+
     </div>
   )
 }

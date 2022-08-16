@@ -11,11 +11,14 @@ import { useToast } from 'renderer/hooks';
 import { atom, useAtom, useAtomValue } from 'jotai';
 import { selectedAtom } from '../test';
 import { setupRoute } from 'renderer/helpers/route';
-import { ListBox } from 'primereact/listbox';
-import { useElectron } from 'renderer/electron_ipc';
+import ElectronIPC, { useElectron } from 'renderer/electron_ipc';
+import { createStoreAtom } from 'renderer/helpers';
 
 export const knobAtom = atom(0)
-export const chipsAtom = atom<string[]>([])
+export const rootAtom = atom<string | null>(null)
+
+const pathAtom = createStoreAtom<string>('root_path', "")
+export const chipsAtom = createStoreAtom<string[]>('chips', [])
 
 export const HomeLayout = () => {
   const navigate = useNavigate()
@@ -23,25 +26,35 @@ export const HomeLayout = () => {
   const [knob, setKnob] = useAtom(knobAtom)
   const [chips, setChips] = useAtom(chipsAtom)
   const selected = useAtomValue(selectedAtom)
+  const [test, setTest] = useAtom(pathAtom)
 
-  const [items] = useElectron.test({
-    initial: {
-      path: ['uwu', 'fino señores', 'nyatzu']
-    }
-  })
+  const handleChangePath = async () => {
+    const res = await ElectronIPC.selectDir({})
+    if (!res || res.canceled) return
+    console.log(res)
+    setTest(res.filePaths[0])
+  }
 
   return (
     <div className=" p-2 flex flex-column gap-3 ">
       <div className=" flex justify-content-between ">
         <div tw=" text-yellow-400 text-2xl font-semibold mx-1 ">
-          Dashboard {selected && ` - ${selected}`}
+          Dashboard <span className="text-gray-200 font-normal ">{test}</span>
         </div>
-        <Button
-          label="Test"
-          icon=" pi pi-cog "
-          className=" p-button-info p-button-sm self-align-right py-0 px-2 "
-          onClick={() => navigate('/test')}
-        />
+        <div className="h-full flex gap-2 ">
+          <Button
+            label="Cambiar directorio raiz"
+            icon=" pi pi-home "
+            className=" p-button-primary p-button-sm self-align-right py-1 px-2 "
+            onClick={handleChangePath}
+          />
+          <Button
+            label="Test"
+            icon=" pi pi-cog "
+            className=" p-button-info p-button-sm self-align-right py-1 px-2 "
+            onClick={() => navigate('/test')}
+          />
+        </div>
       </div>
 
       <Card>
@@ -111,15 +124,6 @@ export const HomeLayout = () => {
       <Card>
         <pre>
           {JSON.stringify({ knob, chips, selected }, null, 2)}
-        </pre>
-      </Card>
-
-      <Card>
-        <pre>
-          <ListBox
-            listStyle={{ maxHeight: '30vh' }}
-            options={items?.items}
-          />
         </pre>
       </Card>
 
